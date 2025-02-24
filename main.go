@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -215,9 +216,12 @@ func apiCreate(w http.ResponseWriter, r *http.Request) {
 		return
     }
 
-	if reqModel.Type == "File" && !fileFound {
-		http.Error(w, "Expected file in form data", http.StatusBadRequest)
-		return
+	if reqModel.Type == "File" {
+        if !fileFound {
+            http.Error(w, "Expected file in form data", http.StatusBadRequest)
+            return
+        }
+        return // we are done already because we streamed the file immediatly above
 	} else if reqModel.Type == "Dir" {
 		// TODO: check that parent is a directory and that there's no files at this path
 		// TODO: security
@@ -250,20 +254,26 @@ func apiCopy(w http.ResponseWriter, r *http.Request) {
 
     srcpath := filepath.Join(dir, reqModel.Src)
     dstpath := filepath.Join(dir, reqModel.Dst)
+    log.Println(srcpath, dstpath)
 
     // stat
     srcfi, err := os.Stat(srcpath)
-    if !srcfi.Mode().IsRegular() {
-		http.Error(w, "", http.StatusBadRequest)
-		return
-    }
-    dstfi, err := os.Stat(dstpath)
     if err != nil {
 		log.Printf("error: %s\n", err.Error())
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
         return
     }
-	if dstfi.IsDir() {
+    if !srcfi.Mode().IsRegular() {
+		http.Error(w, "Src is not a regular file", http.StatusBadRequest)
+		return
+    }
+    dstfi, err := os.Stat(dstpath)
+    if !os.IsNotExist(err) && err != nil {
+		log.Printf("error: %s\n", err.Error())
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+        return
+    }
+	if err == nil /* file exists */ && dstfi.IsDir() {
 		dstpath = filepath.Join(dstpath, filepath.Base(srcpath))
 	}
 
@@ -290,15 +300,30 @@ func apiCopy(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
         return
     }
-    _ = dstf.Sync()
+    err = dstf.Sync()
+    if err != nil {
+		log.Printf("error: %s\n", err.Error())
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+        return
+    }
 }
 
 func main() {
+    flag.StringVar(&dir, "d", ".", "directory to serve")
+    flag.StringVar(&port, "p", "8080", "port")
+    flag.Parse()
+
+    if fi, err := os.Stat(dir); err != nil || !fi.Mode().IsDir() {
+        log.Fatal("bad directory 😠\n")
+    }
+
 	s := http.NewServeMux()
 	s.HandleFunc("POST /list", apiListDir)
 	s.HandleFunc("POST /read", apiRead)
 	s.HandleFunc("POST /create", apiCreate)
 	s.HandleFunc("POST /copy", apiCopy)
+
 	log.Printf("starting on http://%s:%s\n", host, port)
-	http.ListenAndServe(fmt.Sprintf("%s:%s", host, port), s)
+	log.Printf("serving dir %s\n", dir)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%s", host, port), s))
 }
