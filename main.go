@@ -254,7 +254,6 @@ func apiCopy(w http.ResponseWriter, r *http.Request) {
 
     srcpath := filepath.Join(dir, reqModel.Src)
     dstpath := filepath.Join(dir, reqModel.Dst)
-    log.Println(srcpath, dstpath)
 
     // stat
     srcfi, err := os.Stat(srcpath)
