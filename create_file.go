@@ -16,7 +16,7 @@ type createFileReq struct {
 }
 
 type createFileResp struct {
-	Entry fileEntry
+	Entry fileMeta
 }
 
 func apiCreateFile(w http.ResponseWriter, r *http.Request) {
@@ -96,22 +96,12 @@ func apiCreateFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var respModel createFileResp
-	fi, err := os.Stat(path)
+    entry, err := fileMetaOf(path)
 	if err != nil {
 		internalError(w, err)
 		return
 	}
-	respModel.Entry.Name = fi.Name()
-	respModel.Entry.Path = path
-	mode := fi.Mode()
-	if mode.IsDir() {
-		respModel.Entry.Type = "Dir"
-	} else {
-		respModel.Entry.Type = "File"
-	}
-	respModel.Entry.Size = uint64(fi.Size())
-	respModel.Entry.ModTime = fi.ModTime()
-
+	respModel.Entry = entry
 	w.WriteHeader(http.StatusCreated)
 	e := json.NewEncoder(w)
 	e.Encode(respModel)

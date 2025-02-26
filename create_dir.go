@@ -12,7 +12,7 @@ type createDirReq struct {
 }
 
 type createDirResp struct {
-	Entry fileEntry
+	Entry fileMeta
 }
 
 func apiCreateDir(w http.ResponseWriter, r *http.Request) {
@@ -25,15 +25,28 @@ func apiCreateDir(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: check that parent is a directory and that there's no files at this path
 	// TODO: security
-	err = os.MkdirAll(filepath.Join(dir, reqModel.Path), 0o777)
+    path := filepath.Join(dir, reqModel.Path)
+
+	// TODO: check that parent is a directory and that there's no files at this path
+	err = os.MkdirAll(path, 0o777)
 	if err != nil {
 		internalError(w, err)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
+
+	var respModel createFileResp
+    entry, err := fileMetaOf(path)
+	if err != nil {
+		internalError(w, err)
+		return
+	}
+	respModel.Entry = entry
+	w.WriteHeader(http.StatusCreated)
+	e := json.NewEncoder(w)
+	e.Encode(respModel)
 
 	// TODO: write metadata json
 }

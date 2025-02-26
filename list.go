@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,7 +13,7 @@ type listReq struct {
 	// TODO: options
 }
 type listResp struct {
-	Entries []fileEntry
+	Entries []fileMeta
 }
 
 func apiListDir(w http.ResponseWriter, r *http.Request) {
@@ -38,25 +39,16 @@ func apiListDir(w http.ResponseWriter, r *http.Request) {
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		handleNotFoundOrInternalErr(w, err)
+        return
 	}
 	var respModel listResp
-	respModel.Entries = make([]fileEntry, len(entries))
+	respModel.Entries = make([]fileMeta, len(entries)) // preallocate
 	for i, entry := range entries {
-		respModel.Entries[i] = fileEntry{
-			Name: entry.Name(),
-			Path: filepath.Join(path, entry.Name()),
-		}
-		if fi, err := entry.Info(); err == nil {
-			mode := fi.Mode()
-			// TODO: symlinks https://pkg.go.dev/io/fs#FileMode
-			if mode.IsDir() {
-				respModel.Entries[i].Type = "Dir"
-			} else {
-				respModel.Entries[i].Type = "File"
-			}
-			respModel.Entries[i].Size = uint64(fi.Size())
-			respModel.Entries[i].ModTime = fi.ModTime()
-		}
+        meta, err := fileMetaOf(filepath.Join(path, entry.Name()))
+        if err != nil {
+            log.Printf("error when listing dir: %v", err.Error())
+        }
+        respModel.Entries[i] = meta
 	}
 
 	w.Header().Add("Content-Type", "application/json")

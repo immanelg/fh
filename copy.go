@@ -15,7 +15,7 @@ type copyReq struct {
 }
 
 type copyResp struct {
-	Entry fileEntry
+	Entry fileMeta
 }
 
 func apiCopy(w http.ResponseWriter, r *http.Request) {

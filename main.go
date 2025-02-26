@@ -33,6 +33,7 @@ func main() {
 	s.HandleFunc("POST /create-dir", apiCreateDir)
 	s.HandleFunc("POST /delete", apiDelete)
 	s.HandleFunc("POST /copy", apiCopy)
+	s.HandleFunc("POST /metadata", apiMetadata)
 
 	log.Printf("starting on http://%s:%s\n", host, port)
 	log.Printf("serving dir %s\n", dir)
