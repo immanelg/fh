@@ -1,38 +1,36 @@
 package main
 
 import (
-	"encoding/json"
-	"net/http"
-	"path/filepath"
+	"os"
+	"time"
 )
 
-type metadataReq struct {
-	Path string
+type fileMeta struct {
+	Name    string
+	Path    string
+	Type    string
+	Size    uint64
+	ModTime time.Time
+    // TODO: unix permission bits?
 }
 
-type metadataResp struct {
-	Entry fileMeta
-}
 
-func apiMetadata(w http.ResponseWriter, r *http.Request) {
-	var reqModel metadataReq
-
-	d := json.NewDecoder(r.Body)
-	err := d.Decode(&reqModel)
+func fileMetaOf(path string) (fileMeta, error) {
+    var e fileMeta
+	fi, err := os.Stat(path)
 	if err != nil {
-		http.Error(w, "Invalid payload", http.StatusBadRequest)
-		return
+		return e, err
 	}
-
-    path := filepath.Join(dir, reqModel.Path)
-
-	var respModel metadataResp
-    entry, err := fileMetaOf(path)
-	if err != nil {
-		handleNotFoundOrInternalErr(w, err)
-		return
+	e.Name = fi.Name()
+    // FIXME: here and in list-dir, strip root directory prefix from path.
+	e.Path = path
+	mode := fi.Mode()
+	if mode.IsDir() {
+		e.Type = "Dir"
+	} else {
+		e.Type = "File"
 	}
-	respModel.Entry = entry
-	e := json.NewEncoder(w)
-	e.Encode(respModel)
+	e.Size = uint64(fi.Size())
+	e.ModTime = fi.ModTime()
+    return e, nil
 }
