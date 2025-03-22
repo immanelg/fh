@@ -13,6 +13,7 @@ type listReq struct {
 	// TODO: options
 }
 type listResp struct {
+	// TODO: more data
 	Entries []fileMeta
 }
 
@@ -25,7 +26,7 @@ func apiListDir(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := filepath.Join(dir, reqModel.Path)
+	path := filepath.Join(basedir, reqModel.Path)
 	fi, err := os.Stat(path)
 	if err != nil {
 		handleNotFoundOrInternalErr(w, err)
@@ -39,16 +40,16 @@ func apiListDir(w http.ResponseWriter, r *http.Request) {
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		handleNotFoundOrInternalErr(w, err)
-        return
+		return
 	}
 	var respModel listResp
 	respModel.Entries = make([]fileMeta, len(entries)) // preallocate
 	for i, entry := range entries {
-        meta, err := fileMetaOf(filepath.Join(path, entry.Name()))
-        if err != nil {
-            log.Printf("error when listing dir: %v", err.Error())
-        }
-        respModel.Entries[i] = meta
+		meta, err := fileMetaOf(filepath.Join(path, entry.Name()))
+		if err != nil {
+			log.Printf("error when listing dir: %v", err.Error())
+		}
+		respModel.Entries[i] = meta
 	}
 
 	w.Header().Add("Content-Type", "application/json")

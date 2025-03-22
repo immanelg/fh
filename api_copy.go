@@ -7,37 +7,18 @@ import (
 	"path/filepath"
 )
 
-type copyReq struct {
-	// TODO: multiple Src to one dir
-	Src  string
-	Dst  string
-	Kind string // TODO: Copy, Move, SymlinkLink
-}
-
 type copyResp struct {
 	Entry fileMeta
 }
 
-func apiCopy(w http.ResponseWriter, r *http.Request) {
-	var reqModel copyReq
-	d := json.NewDecoder(r.Body)
-	err := d.Decode(&reqModel)
-	if err != nil {
-		http.Error(w, "Invalid payload", http.StatusBadRequest)
-		return
-	}
-
-	srcpath := filepath.Join(dir, reqModel.Src)
-	dstpath := filepath.Join(dir, reqModel.Dst)
-
-	// stat
+func apiCopy(dstpath string, srcpath string, w http.ResponseWriter, r *http.Request) {
 	srcfi, err := os.Stat(srcpath)
 	if err != nil {
 		internalError(w, err)
 		return
 	}
 	if !srcfi.Mode().IsRegular() {
-		http.Error(w, "Src is not a regular file", http.StatusBadRequest)
+		http.Error(w, "source is not a regular file", http.StatusBadRequest)
 		return
 	}
 	dstfi, err := os.Stat(dstpath)
@@ -74,5 +55,15 @@ func apiCopy(w http.ResponseWriter, r *http.Request) {
 		internalError(w, err)
 		return
 	}
-	// TODO: write metadata response
+
+	var respModel copyResp
+	entry, err := fileMetaOf(dstpath)
+	if err != nil {
+		internalError(w, err)
+		return
+	}
+	respModel.Entry = entry
+	w.WriteHeader(http.StatusCreated)
+	e := json.NewEncoder(w)
+	e.Encode(respModel)
 }
